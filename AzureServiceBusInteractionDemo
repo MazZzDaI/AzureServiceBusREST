@@ -1,0 +1,69 @@
+/// <summary>
+/// Azure Service Bus Hepler sample
+/// </summary>
+/// MazZzDaI, v1.02-ax7, 20.06.2017
+class AzureServiceBusInteractionDemo
+{
+    /// <summary>
+    /// Entry point
+    /// </summary>
+    public static void main(Args _args)
+    {
+        AzureServiceBusInteractionDemo app = new AzureServiceBusInteractionDemo();
+        app.run();
+    }
+
+    public void run()
+    {
+        str AzureServiceNamespace = 'PROXIDE_SERVICE_BUS_NAMESPACE';
+        str AzureQueueName = 'PROVIDE_QUEUE_NAME';
+        str AzureKeyName = 'PROVIDE_KEY_NAME_WITH_READ_AND_WRITE_PERMISSIONS';
+        str AzureKey = 'PROVIDE_KEY_VALUE_WITH_READ_AND_WRITE_PERMISSIONS';
+        int TimeOut = 60;
+
+        AzureServiceBusHelper serviceBusHelper = AzureServiceBusHelper::construct(
+            AzureServiceNamespace,
+            AzureQueueName,
+            AzureKeyName,
+            AzureKey,
+            TimeOut);
+
+        serviceBusHelper.ReadMessageFromQ(identifierStr(AzureServiceBusInteractionDemo), methodStr(AzureServiceBusInteractionDemo, callbackServiceBus), this, 0);
+
+        PizzaSalesOrderDataContract dataContract = PizzaSalesOrderDataContract::counstruct(1, 2, 3, n);
+        serviceBusHelper.SendMessageToQ(dataContract);
+    }
+
+    /// <summary>
+    /// Callback method to process a message content from the queue
+    /// </summary>
+    /// <param name = "_content">Type: System.Net.Http.HttpContent</param>
+    /// <param name = "_brokeredPropertyDC">Type: AzureServiceBusBrokeredPropertyDataContract</param>
+    public void callbackServiceBus(System.Net.Http.HttpContent _content, AzureServiceBusBrokeredPropertyDataContract _brokeredPropertyDC)
+    {
+        str responseJson = _content.ReadAsStringAsync().Result;
+  
+        PizzaSalesLineDataContract data;
+        data = FormJsonSerializer::deserializeObject(classIdGet(data), responseJson);
+        data.parmEventDateTime(_brokeredPropertyDC.convertEnqueuedTimeUtc());
+        
+        PizzaCustomerServiceClass::AddItemToOrder(data);
+    }
+    
+    public void SendMessageToQ(Object _dataContractBody)
+    {
+        try
+        {
+            str dataJson = AzureServiceBusHelper::serializeDataContractToJson(_dataContractBody);
+
+            System.Net.Http.StringContent queryString = new System.Net.Http.StringContent(dataJson);
+            System.Net.Http.HttpResponseMessage postResult = this.httpClient.PostAsync('messages', queryString).Result;
+
+            postResult.EnsureSuccessStatusCode();
+        }
+        catch
+        {
+            error(strFmt("@ClockInAndOut:CouldNotDeleteMessage", 0, AifUtil::getClrErrorMessage()));
+        }
+    }
+}
