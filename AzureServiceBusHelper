@@ -1,0 +1,348 @@
+/// <summary>
+/// Wrapper class for Azure Service Bus Queue interaction
+/// </summary>
+public class AzureServiceBusHelper
+{
+    private const str sbHostSuffix = '.servicebus.windows.net/';
+    private str serviceNamespace;
+    private str queueName;
+    private str keyName;
+    private str key;
+    private int timeOut;
+    private System.Net.Http.HttpClient httpClient;
+
+    /// <summary>
+    /// Protected constructor
+    /// </summary>
+    protected void new()
+    {
+    }
+
+    /// <summary>
+    /// Public constructor
+    /// </summary>
+    /// <param name = "_serviceNamespace">Azure Queue namespace</param>
+    /// <param name = "_queueName">Azure Queue name</param>
+    /// <param name = "_keyName">Azure Queue management permission key name</param>
+    /// <param name = "_key">Azure Queue management permission key value</param>
+    /// <param name = "_timeOut">Time in seconds to wait the response. Default value equal 60</param>
+    /// <returns></returns>
+    public static AzureServiceBusHelper construct(str _serviceNamespace, str _queueName, str _keyName, str _key, int _timeOut = 60)
+    {
+        if (_serviceNamespace == '')
+        {
+            throw warning("@ClockInAndOut:ServiceNamespaceIsNotSpecified");
+        }
+
+        if (_queueName == '')
+        {
+            throw warning("@ClockInAndOut:QueueNameIsNotSpecified");
+        }
+
+        if (_keyName == '')
+        {
+            throw warning("@ClockInAndOut:KeyNameIsNotSpecified");
+        }
+
+        if (_key == '')
+        {
+            throw warning("@ClockInAndOut:KeyIsNotSpecified");
+        }
+
+        AzureServiceBusHelper instance = new AzureServiceBusHelper();
+
+        instance.serviceNamespace = _serviceNamespace;
+        instance.queueName = _queueName;
+        instance.keyName = _keyName;
+        instance.key = _key;
+        instance.timeOut = _timeOut;
+
+        instance.httpClient = instance.initHttpClient();
+
+        return instance;
+    }
+
+    /// <summary>
+    /// Implement fetching messages from the queue in FIFO order
+    /// </summary>
+    /// <param name = "_callbackClassName">The name of class contains method with response processing logic</param>
+    /// <param name = "_callbackMethodName">The name of method with response processing logic</param>
+    /// <param name = "_callbackClassInstance">The instance of class contains method with response processing logic</param>
+    /// <param name = "_batchSize">Count of messages to be processed per one method execution</param>
+    public void ReadMessageFromQ(ClassName _callbackClassName, MethodName _callbackMethodName, Object _callbackClassInstance = null, int _batchSize = 0)
+	{
+        AzureServiceBusBrokeredPropertyDataContract brokeredPropertyDC;
+        int messageNum;
+        boolean firstAttempt = true;
+
+        boolean readMore = true;
+        while (readMore)
+        {
+            if (_batchSize > 0)
+            {
+                messageNum++;
+                if (messageNum > _batchSize)
+                {
+                    break;
+                }
+            }
+
+            try
+            {
+                brokeredPropertyDC = null;
+
+                str messageUri = 'messages/head?timeout=' + int2Str(this.timeOut);
+                System.Net.Http.HttpResponseMessage peekMessage = this.httpClient.PostAsync(messageUri, null).Result;
+                peekMessage.EnsureSuccessStatusCode();
+
+                if (peekMessage.StatusCode == System.Net.HttpStatusCode::NoContent)
+                {
+                    //["204"] = "No Messages available within the specified timout period."
+
+                    if (firstAttempt)
+                    {
+                        info("@ClockInAndOut:NoMessagesAvailableInQueue");
+                    }
+
+                    readMore = false;
+                    break;
+                }
+
+                brokeredPropertyDC = AzureServiceBusBrokeredPropertyDataContract::construct(peekMessage.Headers);
+                brokeredPropertyDC.parmAllFields();
+
+                SysDictClass callbackClassDict = new SysDictClass(className2Id(_callbackClassName));
+                if (callbackClassDict.hasObjectMethod(_callbackMethodName))
+                {
+                    //call instance method
+                    Object callbackClass = _callbackClassInstance;
+                    if (callbackClass == null)
+                    {
+                        try
+                        {
+                            callbackClass = callbackClassDict.makeObject();
+                        }
+                        catch
+                        {
+                            throw error(strFmt("@ClockInAndOut:CouldNotInstantiateClass", _callbackClassName));
+                        }
+                    }
+
+                    callbackClassDict.callObject(_callbackMethodName, callbackClass, peekMessage.Content, brokeredPropertyDC);
+                }
+                else if (callbackClassDict.hasStaticMethod(_callbackMethodName))
+                {
+                    //call static method
+                    callbackClassDict.callStatic(_callbackMethodName, peekMessage.Content, brokeredPropertyDC);
+                }
+                else
+                {
+                    throw error(strFmt("@ClockInAndOut:MethodIsNotExistsInClass", _callbackMethodName, _callbackClassName));
+                }
+                
+                this.DelegateProcessServiceBusContent(peekMessage.Content, brokeredPropertyDC);
+
+                this.deleteMessage(brokeredPropertyDC.parmMessageId(), brokeredPropertyDC.parmLockToken());
+
+                firstAttempt = false;
+            }
+            catch
+            {
+                readMore = false;
+
+                if (brokeredPropertyDC != null)
+                {
+                    this.unlockMessage(brokeredPropertyDC.parmMessageId(), brokeredPropertyDC.parmLockToken());
+                }
+
+                error(strFmt("@ClockInAndOut:CouldNotProcessMessage", AifUtil::getClrErrorMessage()));
+            }
+        }
+	}
+
+    /// <summary>
+    /// Implement deletion of peeked up message from the queue
+    /// </summary>
+    /// <param name = "_messageId">GUID</param>
+    /// <param name = "_lockToken">GUID</param>
+    private void deleteMessage(str _messageId, str _lockToken)
+    {
+        if (_messageId != ''
+            && _lockToken != '')
+        {
+            try
+            {
+                str messageUri = strfmt('messages/%1/%2?timeout=%3', _messageId, _lockToken, timeOut);
+            
+                System.Net.Http.HttpResponseMessage deleteMessage = this.httpClient.DeleteAsync(messageUri).Result;
+                deleteMessage.EnsureSuccessStatusCode();
+            }
+            catch
+            {
+                error(strFmt("@ClockInAndOut:CouldNotDeleteMessage", _messageId, AifUtil::getClrErrorMessage()));
+            }
+        }
+    }
+
+    /// <summary>
+    /// Implement unlocking of peeked up message from the queue
+    /// </summary>
+    /// <param name = "_messageId">GUID</param>
+    /// <param name = "_lockToken">GUID</param>
+    private void unlockMessage(str _messageId, str _lockToken)
+    {
+        if (_messageId != ''
+            && _lockToken != '')
+        {
+            try
+            {
+                str messageUri = strfmt('messages/%1/%2?timeout=%3', _messageId, _lockToken, timeOut);
+            
+                System.Net.Http.HttpResponseMessage unlockMessage = this.httpClient.PutAsync(messageUri, null).Result;
+                unlockMessage.EnsureSuccessStatusCode();
+            }
+            catch
+            {
+                error(strFmt("@ClockInAndOut:CouldNotUnlockMessage", _messageId, AifUtil::getClrErrorMessage()));
+            }
+        }
+    }
+
+    /// <summary>
+    /// Implement send mechanism to the queue
+    /// </summary>
+    /// <param name = "_dataContractBody">Serializable class instance to be sent as message body</param>
+    public void SendMessageToQ(Object _dataContractBody)
+    {
+        try
+        {
+            str dataJson = AzureServiceBusHelper::serializeDataContractToJson(_dataContractBody);
+
+            System.Net.Http.StringContent queryString = new System.Net.Http.StringContent(dataJson);
+            System.Net.Http.HttpResponseMessage postResult = this.httpClient.PostAsync('messages', queryString).Result;
+
+            postResult.EnsureSuccessStatusCode();
+        }
+        catch
+        {
+            error(strFmt("@ClockInAndOut:CouldNotDeleteMessage", 0, AifUtil::getClrErrorMessage()));
+        }
+    }
+
+    /// <summary>
+    /// Instantiate or return instantiated web client
+    /// </summary>
+    /// <returns>Web client instance</returns>
+    private System.Net.Http.HttpClient initHttpClient()
+    {
+        if (httpClient == null)
+        {
+            str baseAddress = 'https://' + this.serviceNamespace + sbHostSuffix;
+            str qAddress = baseAddress + this.queueName + '/';
+        
+            str sasToken = this.GetSASToken(qAddress, this.keyName, this.key);
+  
+            httpClient = new System.Net.Http.HttpClient();
+            httpClient.BaseAddress = new System.Uri(qAddress);
+
+            var requestHeaders = httpClient.DefaultRequestHeaders;
+            requestHeaders.TryAddWithoutValidation('Authorization', sasToken);
+        }
+
+        return httpClient;
+    }
+
+    /// <summary>
+    /// Create SAS header for message
+    /// </summary>
+    /// <param name = "_resourceUri">URI to the queue</param>
+    /// <param name = "_keyName">Azure Queue management permission key name</param>
+    /// <param name = "_key">Azure Queue management permission key value</param>
+    /// <returns></returns>
+	private str GetSASToken(str _resourceUri, str _keyName, str _key)
+	{
+        str expiry = this.GetExpiry();
+        str stringToSign = System.Web.HttpUtility::UrlEncode(_resourceUri) + '\n' + expiry;
+
+        System.Security.Cryptography.HMACSHA256 hmac = new System.Security.Cryptography.HMACSHA256(System.Text.Encoding::UTF8.GetBytes(_key));
+
+        str signature = System.Convert::ToBase64String(hmac.ComputeHash(System.Text.Encoding::UTF8.GetBytes(stringToSign)));
+
+        str sasToken = strFmt('SharedAccessSignature sr=%1&sig=%2&se=%3&skn=%4',
+            System.Web.HttpUtility::UrlEncode(_resourceUri),
+            System.Web.HttpUtility::UrlEncode(signature),
+			expiry,
+			_keyName);
+
+        return sasToken;
+	}
+
+    /// <summary>
+    /// Calculates elapsed seconds count from 01\01\1970
+    /// </summary>
+    /// <returns>str</returns>
+	private str GetExpiry()
+	{
+        utcdatetime begEpochDt = datetobeginUtcDateTime(01\01\1970, Timezone::GMT_COORDINATEDUNIVERSALTIME);
+        int64 expiry = DateTimeUtil::getDifference(DateTimeUtil::utcNow(), begEpochDt) + 3600;
+        return int642Str(expiry);
+	}
+
+    /// <summary>
+    /// Serialize instantiated serializable class to JSON object
+    /// </summary>
+    /// <param name = "_object"></param>
+    /// <returns>str</returns>
+    public static str SerializeDataContractToJson(Object _object)
+    {
+        return FormJsonSerializer::serializeClass(_object);
+    }
+
+    /// <summary>
+    /// Deserialize JSON object to serializable class instance
+    /// </summary>
+    /// <param name = "_objectTypeId">ClassId</param>
+    /// <param name = "_jsonStr">JSON object</param>
+    /// <returns>Instantiated serializable class</returns>
+    public static Object DeserealizeJsonToDataContract(ClassId _objectTypeId, str _jsonStr)
+    {
+        str tmpJsonStr = _jsonStr;
+
+        int jsonLength = strLen(tmpJsonStr);
+        int jsonBodyStartPos = strScan(tmpJsonStr, '{', 1, jsonLength);
+        int jsonBodyEndPos = 1 + strFind(tmpJsonStr, '}', jsonLength, jsonLength * -1);
+
+        tmpJsonStr = subStr(tmpJsonStr, jsonBodyStartPos, jsonBodyEndPos - jsonBodyStartPos);
+
+        return FormJsonSerializer::deserializeObject(_objectTypeId, tmpJsonStr);
+    }
+
+    /// <summary>
+    /// Delegate to be called all the time when new message peeked up from the queue
+    /// </summary>
+    /// <param name = "_content">Type: System.Net.Http.HttpContent</param>
+    /// <param name = "_brokeredPropertyDC">Type: AzureServiceBusBrokeredPropertyDataContract</param>
+    delegate void DelegateProcessServiceBusContent(System.Net.Http.HttpContent _content, AzureServiceBusBrokeredPropertyDataContract _brokeredPropertyDC)
+    {
+    }
+
+    /// <summary>
+    /// Sample subscriber method for delegate to be called all the time when new message peeked up from the queue
+    /// </summary>
+    /// <param name = "_content">Type: System.Net.Http.HttpContent</param>
+    /// <param name = "_brokeredPropertyDC">Type: AzureServiceBusBrokeredPropertyDataContract</param>
+    [SubscribesTo(classStr(AzureServiceBusHelper), delegateStr(AzureServiceBusHelper, DelegateProcessServiceBusContent))]
+    public static void DelegateExample_processServiceBusContent(System.Net.Http.HttpContent _content, AzureServiceBusBrokeredPropertyDataContract _brokeredPropertyDC)
+    {
+    }
+
+    /// <summary>
+    /// Sample callback method for message content processing
+    /// </summary>
+    /// <param name = "_content">Type: System.Net.Http.HttpContent</param>
+    /// <param name = "_brokeredPropertyDC">Type: AzureServiceBusBrokeredPropertyDataContract</param>
+    private void CallbackExample(System.Net.Http.HttpContent _content, AzureServiceBusBrokeredPropertyDataContract _brokeredPropertyDC)
+    {
+    }
+
+}
