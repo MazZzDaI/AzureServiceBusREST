@@ -1,0 +1,152 @@
+/// <summary>
+/// Azure Service Bus Queue header Brokered Property data contract
+/// https://docs.microsoft.com/en-us/dotnet/api/microsoft.servicebus.messaging.brokeredmessage?view=azureservicebus-4.0.0
+/// </summary>
+[DataContractAttribute('AzureServiceBusBrokeredPropertyDataContract')]
+class AzureServiceBusBrokeredPropertyDataContract
+{
+    System.Net.Http.Headers.HttpResponseHeaders responseHeaders;
+    
+    str enqueuedTimeUtc;
+    str messageId;
+    str lockToken;
+    //int deliveryCount;
+    //int enqueuedSequenceNumber;
+    //int partitionKey;
+    //int64 sequenceNumber;
+    //str state;
+    //int64 timeToLive;
+    
+    /// <summary>
+    /// Protected constructor
+    /// </summary>
+    protected void new()
+    {
+    }
+
+    /// <summary>
+    /// Public constructor
+    /// </summary>
+    /// <param name = "_responseHeaders">Type: System.Net.Http.Headers.HttpResponseHeaders</param>
+    /// <returns>Instance of Type: AzureServiceBusBrokeredPropertyDataContract</returns>
+    public static AzureServiceBusBrokeredPropertyDataContract construct(System.Net.Http.Headers.HttpResponseHeaders _responseHeaders)
+    {
+        AzureServiceBusBrokeredPropertyDataContract instance = new AzureServiceBusBrokeredPropertyDataContract();
+        instance.responseHeaders = _responseHeaders;
+
+        return instance;
+    }
+
+    /// <summary>
+    /// Implement automatically parm of declared fields
+    /// </summary>
+    public void parmAllFields()
+    {
+        str eventDateTimeStr = this.getHeaderByName('EnqueuedTimeUtc');
+        if (eventDateTimeStr != '')
+        {
+            this.parmEnqueuedTimeUtc(eventDateTimeStr);
+        }
+
+        str messageIdStr = this.getHeaderByName('MessageId');
+        if (messageIdStr != '')
+        {
+            this.parmMessageId(messageIdStr);
+        }
+
+        str lockTokenStr = this.getHeaderByName('LockToken');
+        if (lockTokenStr != '')
+        {
+            this.parmLockToken(lockTokenStr);
+        }
+    }
+
+    /// <summary>
+    /// Retrieving of string value from header using the name
+    /// </summary>
+    /// <param name = "_headerName">The name of header</param>
+    /// <returns>The value of header</returns>
+    public str getHeaderByName(str _headerName)
+    {
+        str ret;
+
+        var brokerPropertiesHeadersList = this.responseHeaders.GetValues('BrokerProperties');
+        var brokerPropertiesHeadersEnumerator = brokerPropertiesHeadersList.GetEnumerator();
+
+        brokerPropertiesHeadersEnumerator.MoveNext();
+        str brokeredPropertiesJson = brokerPropertiesHeadersEnumerator.get_Current();
+
+        Map brokeredPropertiesMap = RetailCommonWebAPI::getMapFromJsonString(brokeredPropertiesJson);
+           
+        container brokeredPropertyCon = brokeredPropertiesMap.lookup(_headerName);
+        if (brokeredPropertyCon != conNull())
+        {
+            ret = conPeek(brokeredPropertyCon, 1);
+        }
+
+        return ret;
+    }
+
+    [DataMemberAttribute('EnqueuedTimeUtc')]
+    public str parmEnqueuedTimeUtc(str _enqueuedTimeUtc = enqueuedTimeUtc)
+    {
+        enqueuedTimeUtc = _enqueuedTimeUtc;
+        return enqueuedTimeUtc;
+    }
+
+    [DataMemberAttribute('MessageId')]
+    public str parmMessageId(str _messageId = messageId)
+    {
+        messageId = _messageId;
+        return messageId;
+    }
+
+    [DataMemberAttribute('LockToken')]
+    public str parmLockToken(str _lockToken = lockToken)
+    {
+        lockToken = _lockToken;
+        return lockToken;
+    }
+
+    /// <summary>
+    /// Converting string value to utcdatetime
+    /// </summary>
+    /// <returns>Type: utcdatetime</returns>
+    public utcdatetime convertEnqueuedTimeUtc()
+    {
+        utcdatetime ret;
+        try
+        {
+            ret = System.DateTime::ParseExact(
+                enqueuedTimeUtc,
+                System.Globalization.CultureInfo::CurrentCulture.DateTimeFormat.RFC1123Pattern,
+                System.Globalization.CultureInfo::InvariantCulture);
+            //enqueuedTimeUtc = DateTimeUtil::applyTimeZoneOffset(enqueuedTimeUtc, DateTimeUtil::getCompanyTimeZone());
+        }
+        catch
+        {
+            error(strFmt("Could not convert string '%1' to UTCDateTime", enqueuedTimeUtc));
+        }
+
+        return ret;
+    }
+
+    /// <summary>
+    /// Converting string value to GUID
+    /// </summary>
+    /// <returns>Type: GUID</returns>
+    public guid convertMessageId()
+    {
+        return str2Guid(messageId);
+    }
+
+    /// <summary>
+    /// Converting string value to GUID
+    /// </summary>
+    /// <returns>Type: GUID</returns>
+    public guid convertLockToken()
+    {
+        return str2Guid(lockToken);
+    }
+
+}
