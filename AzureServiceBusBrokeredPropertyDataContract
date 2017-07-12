@@ -3,7 +3,7 @@
 /// Class provice access to Service Bus message headers.
 /// Documentation https://docs.microsoft.com/en-us/dotnet/api/microsoft.servicebus.messaging.brokeredmessage?view=azureservicebus-4.0.0
 /// </summary>
-/// MazZzDaI, v1.02-ax7, 08.06.2017
+/// MazZzDaI, v1.02-ax7, 20.06.2017
 [DataContractAttribute('AzureServiceBusBrokeredPropertyDataContract')]
 class AzureServiceBusBrokeredPropertyDataContract
 {
