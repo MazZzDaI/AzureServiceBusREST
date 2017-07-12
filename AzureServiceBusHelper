@@ -1,6 +1,7 @@
 /// <summary>
-/// Wrapper class for Azure Service Bus Queue interaction
+/// Wrapper for Azure Service Bus Queue. Provide read/write functionality with Peek-Lock and Delete method
 /// </summary>
+/// MazZzDaI, v1.02-ax7, 20.06.2017
 public class AzureServiceBusHelper
 {
     private const str sbHostSuffix = '.servicebus.windows.net/';
