@@ -1,7 +1,7 @@
-/// <summary>
+﻿/// <summary>
 /// Wrapper for Azure Service Bus Queue. Provide read/write functionality with Peek-Lock and Delete method
 /// </summary>
-/// MazZzDaI, v1.02-ax7, 20.06.2017
+/// Oleksandr Dudarenko, 17.12.2019
 public class AzureServiceBusHelper
 {
     private const str sbHostSuffix = '.servicebus.windows.net/';
@@ -32,22 +32,22 @@ public class AzureServiceBusHelper
     {
         if (_serviceNamespace == '')
         {
-            throw warning("@ClockInAndOut:ServiceNamespaceIsNotSpecified");
+            throw warning("ServiceNamespaceIsNotSpecified");
         }
 
         if (_queueName == '')
         {
-            throw warning("@ClockInAndOut:QueueNameIsNotSpecified");
+            throw warning("QueueNameIsNotSpecified");
         }
 
         if (_keyName == '')
         {
-            throw warning("@ClockInAndOut:KeyNameIsNotSpecified");
+            throw warning("KeyNameIsNotSpecified");
         }
 
         if (_key == '')
         {
-            throw warning("@ClockInAndOut:KeyIsNotSpecified");
+            throw warning("KeyIsNotSpecified");
         }
 
         AzureServiceBusHelper instance = new AzureServiceBusHelper();
@@ -71,7 +71,7 @@ public class AzureServiceBusHelper
     /// <param name = "_callbackClassInstance">The instance of class contains method with response processing logic</param>
     /// <param name = "_batchSize">Count of messages to be processed per one method execution</param>
     public void ReadMessageFromQ(ClassName _callbackClassName, MethodName _callbackMethodName, Object _callbackClassInstance = null, int _batchSize = 0)
-	{
+    {
         AzureServiceBusBrokeredPropertyDataContract brokeredPropertyDC;
         int messageNum;
         boolean firstAttempt = true;
@@ -102,7 +102,7 @@ public class AzureServiceBusHelper
 
                     if (firstAttempt)
                     {
-                        info("@ClockInAndOut:NoMessagesAvailableInQueue");
+                        info("NoMessagesAvailableInQueue");
                     }
 
                     readMore = false;
@@ -125,7 +125,7 @@ public class AzureServiceBusHelper
                         }
                         catch
                         {
-                            throw error(strFmt("@ClockInAndOut:CouldNotInstantiateClass", _callbackClassName));
+                            throw error(strFmt("CouldNotInstantiateClass", _callbackClassName));
                         }
                     }
 
@@ -138,7 +138,7 @@ public class AzureServiceBusHelper
                 }
                 else
                 {
-                    throw error(strFmt("@ClockInAndOut:MethodIsNotExistsInClass", _callbackMethodName, _callbackClassName));
+                    throw error(strFmt("MethodIsNotExistsInClass", _callbackMethodName, _callbackClassName));
                 }
                 
                 this.DelegateProcessServiceBusContent(peekMessage.Content, brokeredPropertyDC);
@@ -156,10 +156,10 @@ public class AzureServiceBusHelper
                     this.unlockMessage(brokeredPropertyDC.parmMessageId(), brokeredPropertyDC.parmLockToken());
                 }
 
-                error(strFmt("@ClockInAndOut:CouldNotProcessMessage", AifUtil::getClrErrorMessage()));
+                error(strFmt("CouldNotProcessMessage", AifUtil::getClrErrorMessage()));
             }
         }
-	}
+    }
 
     /// <summary>
     /// Implement deletion of peeked up message from the queue
@@ -260,8 +260,8 @@ public class AzureServiceBusHelper
     /// <param name = "_keyName">Azure Queue management permission key name</param>
     /// <param name = "_key">Azure Queue management permission key value</param>
     /// <returns></returns>
-	private str GetSASToken(str _resourceUri, str _keyName, str _key)
-	{
+    private str GetSASToken(str _resourceUri, str _keyName, str _key)
+    {
         str expiry = this.GetExpiry();
         str stringToSign = System.Web.HttpUtility::UrlEncode(_resourceUri) + '\n' + expiry;
 
@@ -272,22 +272,22 @@ public class AzureServiceBusHelper
         str sasToken = strFmt('SharedAccessSignature sr=%1&sig=%2&se=%3&skn=%4',
             System.Web.HttpUtility::UrlEncode(_resourceUri),
             System.Web.HttpUtility::UrlEncode(signature),
-			expiry,
-			_keyName);
+            expiry,
+            _keyName);
 
         return sasToken;
-	}
+    }
 
     /// <summary>
     /// Calculates elapsed seconds count from 01\01\1970
     /// </summary>
     /// <returns>str</returns>
-	private str GetExpiry()
-	{
+    private str GetExpiry()
+    {
         utcdatetime begEpochDt = datetobeginUtcDateTime(01\01\1970, Timezone::GMT_COORDINATEDUNIVERSALTIME);
         int64 expiry = DateTimeUtil::getDifference(DateTimeUtil::utcNow(), begEpochDt) + 3600;
         return int642Str(expiry);
-	}
+    }
 
     /// <summary>
     /// Serialize instantiated serializable class to JSON object

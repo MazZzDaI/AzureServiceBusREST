@@ -1,0 +1,16 @@
+﻿/// <summary>
+/// Azure Service Bus demo. Service class to process message received from Azure
+/// </summary>
+/// Oleksandr Dudarenko, 17.12.2019
+class PizzaService
+{
+    public static void addItemToOrder(PizzaDataContract _dataContract)
+    {
+        info(strFmt("Order created in company '%1' for customer '%2'. Amount = %3. Order received in %4",
+            _dataContract.parmDataAreaId(),
+            _dataContract.parmCustomerId(),
+            _dataContract.parmTotalAmount(),
+            _dataContract.parmEventDateTime()));
+    }
+
+}
