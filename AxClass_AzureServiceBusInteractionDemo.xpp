@@ -16,10 +16,10 @@ class AzureServiceBusInteractionDemo
 
     public void run()
     {
-        str AzureServiceNamespace = 'SodraD365';
-        str AzureQueueName = 'sodrad365soutboundframeworkqueue';
-        str AzureKeyName = 'managePolicy';
-        str AzureKey = 'Y+K87yozNkiJMVUoYor8vFFnUOYant4JgK6EDAEU3sg=';
+        str AzureServiceNamespace = 'SERVICE_BUS_NAME_SPACE';
+        str AzureQueueName = 'SERVICE_BUS_QUEUE_NAME';
+        str AzureKeyName = 'SAS_POLICY_NAME';
+        str AzureKey = 'SAS_POLICY_KEY';
         int TimeOut = 60;
 
         AzureServiceBusHelper serviceBusHelper = AzureServiceBusHelper::construct(
