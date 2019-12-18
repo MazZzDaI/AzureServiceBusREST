@@ -1,7 +1,8 @@
 ﻿/// <summary>
-/// Azure Service Bus demo
+/// // Azure Service Bus demo
 /// </summary>
-/// Oleksandr Dudarenko, 17.12.2019
+/// Oleksandr Dudarenko, v1 12.07.2017
+/// Oleksandr Dudarenko, v2 17.12.2019
 class AzureServiceBusInteractionDemo
 {
     /// <summary>
@@ -15,10 +16,10 @@ class AzureServiceBusInteractionDemo
 
     public void run()
     {
-        str AzureServiceNamespace = 'NS_NAME';
-        str AzureQueueName = 'Q_NAME';
-        str AzureKeyName = 'POLICY_NAME';
-        str AzureKey = 'POLICY_SECRET';
+        str AzureServiceNamespace = 'SodraD365';
+        str AzureQueueName = 'sodrad365soutboundframeworkqueue';
+        str AzureKeyName = 'managePolicy';
+        str AzureKey = 'Y+K87yozNkiJMVUoYor8vFFnUOYant4JgK6EDAEU3sg=';
         int TimeOut = 60;
 
         AzureServiceBusHelper serviceBusHelper = AzureServiceBusHelper::construct(
@@ -28,14 +29,22 @@ class AzureServiceBusInteractionDemo
             AzureKey,
             TimeOut);
 
-        serviceBusHelper.ReadMessageFromQ(identifierStr(AzureServiceBusInteractionDemo), methodStr(AzureServiceBusInteractionDemo, callbackServiceBus), this, 0);
-
+        //<Write>
         PizzaDataContract dataContract = new PizzaDataContract();
         dataContract.parmCustomerId('Cust 1');
         dataContract.parmDataAreaId('03se');
         dataContract.parmTotalAmount(100);
 
         serviceBusHelper.SendMessageToQ(dataContract);
+        //</Write>
+
+        //<Read>
+        serviceBusHelper.ReadMessageFromQ(
+            identifierStr(AzureServiceBusInteractionDemo),
+            methodStr(AzureServiceBusInteractionDemo, callbackServiceBus),
+            this,
+            0);
+        //</Read>
     }
 
     /// <summary>

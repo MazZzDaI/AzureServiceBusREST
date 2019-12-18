@@ -1,7 +1,8 @@
 ﻿/// <summary>
 /// Azure Service Bus demo. Service class to process message received from Azure
 /// </summary>
-/// Oleksandr Dudarenko, 17.12.2019
+/// Oleksandr Dudarenko, v1 12.07.2017
+/// Oleksandr Dudarenko, v2 17.12.2019
 class PizzaService
 {
     public static void addItemToOrder(PizzaDataContract _dataContract)
