@@ -16,7 +16,7 @@ class AzureServiceBusInteractionDemo
 
     public void run()
     {
-        str AzureServiceNamespace = 'SERVICE_BUS_NAME_SPACE';
+        str AzureServiceNamespace = 'SERVICE_BUS_NAMESPACE';
         str AzureQueueName = 'SERVICE_BUS_QUEUE_NAME';
         str AzureKeyName = 'SAS_POLICY_NAME';
         str AzureKey = 'SAS_POLICY_KEY';
